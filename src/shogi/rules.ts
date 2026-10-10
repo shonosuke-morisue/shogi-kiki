@@ -94,6 +94,16 @@ export function attackCounts(board: (Piece | null)[]): [number[], number[]] {
   return counts;
 }
 
+/** マス t に利いている駒のマス(先手・後手別) */
+export function attackersOf(board: (Piece | null)[], t: number): [number[], number[]] {
+  const out: [number[], number[]] = [[], []];
+  for (let s = 0; s < 81; s++) {
+    const p = board[s];
+    if (p && attacksFrom(board, s).includes(t)) out[p.color].push(s);
+  }
+  return out;
+}
+
 const hasVec = (list: Vec[], x: number, y: number) => list.some(([a, b]) => a === x && b === y);
 
 /** マス t に color 側の駒が利いているか(t から外側に向かって調べる) */

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { attackCounts, fromUsi, initialPosition, legalMoves, makeMove, sq, toUsi } from './rules';
+import { attackCounts, attackersOf, fromUsi, initialPosition, legalMoves, makeMove, sq, toUsi } from './rules';
 import type { Piece, Position } from './types';
 
 function perft(pos: Position, depth: number): number {
@@ -74,5 +74,21 @@ describe('rules', () => {
     ]);
     const ms = legalMoves(pos).filter((m) => m.from === sq(2, 1));
     expect(ms).toEqual([{ from: sq(2, 1), to: sq(2, 0), promote: true }]);
+  });
+
+  it('マスに利いている駒を先手・後手別に返す', () => {
+    // 5五 に先手の飛車 (5九、間は空き) と後手の角 (1一) が利く。先手の金 5六 は飛車を遮らない位置
+    const pos = emptyPosition([
+      [4, 8, { type: 'HI', color: 0 }],
+      [8, 0, { type: 'KA', color: 1 }],
+      [3, 5, { type: 'KI', color: 0 }],
+      [0, 0, { type: 'FU', color: 1 }],
+    ]);
+    const [s, g] = attackersOf(pos.board, sq(4, 4));
+    expect(s.sort()).toEqual([sq(3, 5), sq(4, 8)].sort());
+    expect(g).toEqual([sq(8, 0)]);
+    // 遮られた飛び駒は数えない
+    pos.board[sq(4, 6)] = { type: 'FU', color: 1 };
+    expect(attackersOf(pos.board, sq(4, 4))[0]).toEqual([sq(3, 5)]);
   });
 });
