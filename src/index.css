@@ -13,18 +13,29 @@
   font-family: 'Hiragino Sans', 'Noto Sans JP', 'Yu Gothic', system-ui, sans-serif;
   color: var(--text);
   background: var(--bg);
-  color-scheme: light dark;
+  color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
     --bg: #1c1a18;
     --surface: #26231f;
     --text: #ece6dc;
     --muted: #a99f92;
     --border: #3d3832;
     --accent: #f59e0b;
+    color-scheme: dark;
   }
+}
+
+:root[data-theme='dark'] {
+  --bg: #1c1a18;
+  --surface: #26231f;
+  --text: #ece6dc;
+  --muted: #a99f92;
+  --border: #3d3832;
+  --accent: #f59e0b;
+  color-scheme: dark;
 }
 
 * {
@@ -34,6 +45,7 @@
 body {
   margin: 0;
   background: var(--bg);
+  color: var(--text);
 }
 
 button {
