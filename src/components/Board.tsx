@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import type { CSSProperties } from 'react';
 import { PIECE_CHAR } from '../shogi/notation';
-import type { Color, HandType, Position } from '../shogi/types';
+import type { Color, HandType, Move, Piece, Position } from '../shogi/types';
 import { HAND_TYPES } from '../shogi/types';
 import { kikiAlpha } from './kiki';
 
@@ -17,7 +18,10 @@ interface Props {
   viewer: Color;
   selected: Selection;
   targets: Set<number>;
-  lastTo: number | null;
+  /** 直前の指し手 (移動アニメーションと強調表示に使う) */
+  lastMove: Move | null;
+  /** これまでに指された手数。増えたときだけアニメーションする */
+  moveCount: number;
   checkSq: number | null;
   onSquareClick: (sq: number) => void;
   onHandClick: (color: Color, type: HandType) => void;
@@ -42,8 +46,35 @@ function kikiBackground(nSente: number, nGote: number, viewer: Color, mode: Kiki
   return layers.length ? layers.join(', ') : undefined;
 }
 
+/** 画面上の行・列 (盤面反転を考慮) */
+const displayRC = (s: number, viewer: Color) => {
+  const d = viewer === 0 ? s : 80 - s;
+  return { row: Math.floor(d / 9), col: d % 9 };
+};
+
+/** 動かした駒が移動元 (駒打ちなら持ち駒の側) から滑ってくるための開始位置 (マス単位) */
+function slideOffset(m: Move, viewer: Color, mover: Color): { x: number; y: number } {
+  const to = displayRC(m.to, viewer);
+  if (m.from === null) {
+    // 自分の持ち駒は盤の下、相手の持ち駒は盤の上から
+    return { x: 0, y: mover === viewer ? 9.6 - to.row : -1.6 - to.row };
+  }
+  const from = displayRC(m.from, viewer);
+  return { x: from.col - to.col, y: from.row - to.row };
+}
+
 export function Board(props: Props) {
-  const { pos, counts, kikiMode, showNumbers, viewer, selected, targets, lastTo, checkSq } = props;
+  const { pos, counts, kikiMode, showNumbers, viewer, selected, targets, lastMove, moveCount, checkSq } = props;
+  const lastTo = lastMove?.to ?? null;
+  // 手数が増えたとき (新しく指されたとき) だけアニメーションし、待ったで戻したときは動かさない
+  const [prevCount, setPrevCount] = useState(moveCount);
+  const [animCount, setAnimCount] = useState(-1);
+  if (moveCount !== prevCount) {
+    setPrevCount(moveCount);
+    setAnimCount(moveCount > prevCount ? moveCount : -1);
+  }
+  const animating = lastMove && animCount === moveCount ? lastMove : null;
+  const mover: Color = pos.turn === 0 ? 1 : 0;
   const order = Array.from({ length: 81 }, (_, i) => (viewer === 0 ? i : 80 - i));
   const files = viewer === 0 ? FILE_LABEL : [...FILE_LABEL].reverse();
   const ranks = viewer === 0 ? RANK_LABEL : [...RANK_LABEL].reverse();
@@ -72,10 +103,19 @@ export function Board(props: Props) {
               if (targets.has(s)) cls.push(p ? 'target capture' : 'target');
               return (
                 <button key={s} className={cls.join(' ')} style={style} onClick={() => props.onSquareClick(s)}>
-                  {p && (
-                    <span className={`piece ${p.color !== viewer ? 'flip' : ''} ${isPromoted(p.type) ? 'promoted' : ''}`}>
-                      {p.type === 'OU' && p.color === 1 ? '王' : PIECE_CHAR[p.type]}
+                  {p && animating?.to === s ? (
+                    <span
+                      key={moveCount}
+                      className="piece-slide"
+                      style={(() => {
+                        const o = slideOffset(animating, viewer, mover);
+                        return { '--from-x': o.x, '--from-y': o.y } as CSSProperties;
+                      })()}
+                    >
+                      <PieceGlyph type={p.type} color={p.color} viewer={viewer} />
                     </span>
+                  ) : (
+                    p && <PieceGlyph type={p.type} color={p.color} viewer={viewer} />
                   )}
                   {showNumbers && kikiMode !== 'off' && (
                     <>
@@ -104,6 +144,14 @@ export function Board(props: Props) {
 }
 
 const isPromoted = (t: string) => ['TO', 'NY', 'NK', 'NG', 'UM', 'RY'].includes(t);
+
+function PieceGlyph({ type, color, viewer }: { type: Piece['type']; color: Color; viewer: Color }) {
+  return (
+    <span className={`piece ${color !== viewer ? 'flip' : ''} ${isPromoted(type) ? 'promoted' : ''}`}>
+      {type === 'OU' && color === 1 ? '王' : PIECE_CHAR[type]}
+    </span>
+  );
+}
 
 function HandView(props: Props & { color: Color }) {
   const { pos, color, selected } = props;
