@@ -1,0 +1,26 @@
+{
+  "rules": {
+    "rooms": {
+      "$room": {
+        ".read": "auth != null",
+        ".write": "auth != null && !data.exists() && $room.matches(/^[A-Z0-9]{6}$/)",
+        "sente": {
+          ".write": "auth != null && !data.exists() && newData.val() === auth.uid"
+        },
+        "gote": {
+          ".write": "auth != null && !data.exists() && newData.val() === auth.uid"
+        },
+        "moves": {
+          "$n": {
+            ".write": "auth != null && !data.exists() && (data.parent().parent().child('sente').val() === auth.uid || data.parent().parent().child('gote').val() === auth.uid)",
+            ".validate": "newData.isString() && newData.val().length <= 5"
+          }
+        },
+        "resigned": {
+          ".write": "auth != null && !data.exists() && (data.parent().child('sente').val() === auth.uid || data.parent().child('gote').val() === auth.uid)",
+          ".validate": "newData.val() === 0 || newData.val() === 1"
+        }
+      }
+    }
+  }
+}

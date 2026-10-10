@@ -1,0 +1,188 @@
+import { useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
+import { currentPosition, resultText } from '../shogi/game';
+import type { GameState } from '../shogi/game';
+import { PIECE_CHAR } from '../shogi/notation';
+import { attackCounts, findKing, inCheck, legalMoves } from '../shogi/rules';
+import type { Color, HandType, Move } from '../shogi/types';
+import { PROMOTE } from '../shogi/types';
+import { Board } from './Board';
+import { kikiAlpha } from './kiki';
+import type { KikiMode, Selection } from './Board';
+
+interface Props {
+  game: GameState;
+  /** この画面の利用者が動かせる手番 */
+  controls: Color[];
+  onMove: (m: Move) => void;
+  initialViewer?: Color;
+  /** 状況表示の上書き (AI 思考中・相手待ちなど) */
+  status?: ReactNode;
+  actions?: ReactNode;
+}
+
+export function GameView({ game, controls, onMove, initialViewer = 0, status, actions }: Props) {
+  const pos = currentPosition(game);
+  const [selected, setSelected] = useState<Selection>(null);
+  const [promotion, setPromotion] = useState<{ promote: Move; stay: Move } | null>(null);
+  const [kikiMode, setKikiMode] = useState<KikiMode>('both');
+  const [showNumbers, setShowNumbers] = useState(true);
+  const [viewer, setViewer] = useState<Color>(initialViewer);
+
+  const counts = useMemo(() => attackCounts(pos.board), [pos]);
+  const moves = useMemo(() => (game.result ? [] : legalMoves(pos)), [pos, game.result]);
+  const myTurn = !game.result && controls.includes(pos.turn);
+
+  const candidates = useMemo(() => {
+    if (!selected) return [];
+    return moves.filter((m) =>
+      selected.kind === 'board' ? m.from === selected.sq : m.from === null && m.drop === selected.type,
+    );
+  }, [moves, selected]);
+  const targets = useMemo(() => new Set(candidates.map((m) => m.to)), [candidates]);
+
+  const play = (m: Move) => {
+    setSelected(null);
+    setPromotion(null);
+    onMove(m);
+  };
+
+  const onSquareClick = (s: number) => {
+    if (!myTurn) return;
+    if (targets.has(s)) {
+      const ms = candidates.filter((m) => m.to === s);
+      const promote = ms.find((m) => m.promote);
+      const stay = ms.find((m) => !m.promote);
+      if (promote && stay) setPromotion({ promote, stay });
+      else play(ms[0]);
+      return;
+    }
+    const p = pos.board[s];
+    setSelected(p && p.color === pos.turn ? { kind: 'board', sq: s } : null);
+  };
+
+  const onHandClick = (color: Color, type: HandType) => {
+    if (!myTurn || color !== pos.turn) return;
+    setSelected(selected?.kind === 'hand' && selected.type === type ? null : { kind: 'hand', type });
+  };
+
+  const last = game.moves.length ? game.moves[game.moves.length - 1] : null;
+  const checked = !game.result && inCheck(pos);
+  const turnName = pos.turn === 0 ? '☗先手' : '☖後手';
+
+  let statusText: ReactNode = status;
+  if (game.result) statusText = resultText(game.result);
+  else if (!statusText) statusText = `${turnName}の手番です`;
+
+  const promotingPiece = promotion?.promote.from != null ? pos.board[promotion.promote.from] : null;
+
+  return (
+    <div className="game">
+      <div className="game-main">
+        <div className={`status ${game.result ? 'over' : ''}`}>
+          {statusText}
+          {checked && <span className="check-badge">王手</span>}
+        </div>
+        <Board
+          pos={pos}
+          counts={counts}
+          kikiMode={kikiMode}
+          showNumbers={showNumbers}
+          viewer={viewer}
+          selected={selected}
+          targets={targets}
+          lastTo={last?.to ?? null}
+          checkSq={checked ? findKing(pos.board, pos.turn) : null}
+          onSquareClick={onSquareClick}
+          onHandClick={onHandClick}
+        />
+      </div>
+
+      <aside className="side">
+        <section className="panel">
+          <h3>利きの表示</h3>
+          <div className="seg">
+            {(
+              [
+                ['both', '両方'],
+                ['sente', '先手'],
+                ['gote', '後手'],
+                ['off', 'なし'],
+              ] as const
+            ).map(([k, label]) => (
+              <button key={k} className={kikiMode === k ? 'on' : ''} onClick={() => setKikiMode(k)}>
+                {label}
+              </button>
+            ))}
+          </div>
+          <label className="check">
+            <input type="checkbox" checked={showNumbers} onChange={(e) => setShowNumbers(e.target.checked)} />
+            利きの数を数字でも表示
+          </label>
+          <Legend />
+        </section>
+
+        <section className="panel">
+          <div className="buttons">
+            <button onClick={() => setViewer(viewer === 0 ? 1 : 0)}>盤面を反転</button>
+            {actions}
+          </div>
+        </section>
+
+        <section className="panel">
+          <h3>棋譜</h3>
+          <ol className="kifu">
+            {game.notation.map((n, i) => (
+              <li key={i}>
+                <span className="kifu-no">{i + 1}</span>
+                {n}
+              </li>
+            ))}
+          </ol>
+        </section>
+      </aside>
+
+      {promotion && (
+        <div className="modal-bg" onClick={() => setPromotion(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <p>成りますか?</p>
+            <div className="promo-choices">
+              <button onClick={() => play(promotion.promote)}>
+                <span className="piece promoted">{promotingPiece && PIECE_CHAR[PROMOTE[promotingPiece.type]!]}</span>
+                成る
+              </button>
+              <button onClick={() => play(promotion.stay)}>
+                <span className="piece">{promotingPiece && PIECE_CHAR[promotingPiece.type]}</span>
+                成らない
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Legend() {
+  const steps = [1, 2, 3, 4, 5];
+  return (
+    <div className="legend">
+      {(
+        [
+          ['先手', '20, 100, 255'],
+          ['後手', '220, 38, 38'],
+        ] as const
+      ).map(([name, rgb]) => (
+        <div key={name} className="legend-row">
+          <span className="legend-name">{name}</span>
+          {steps.map((n) => (
+            <span key={n} className="legend-cell" style={{ backgroundImage: `linear-gradient(rgba(${rgb}, ${kikiAlpha(n)}), rgba(${rgb}, ${kikiAlpha(n)}))` }}>
+              {n === 5 ? '5+' : n}
+            </span>
+          ))}
+        </div>
+      ))}
+      <p className="legend-note">色が濃いマスほど、多くの駒が利いています。</p>
+    </div>
+  );
+}
