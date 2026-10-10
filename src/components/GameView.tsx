@@ -2,8 +2,8 @@ import { useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { currentPosition, resultText } from '../shogi/game';
 import type { GameState } from '../shogi/game';
-import { PIECE_CHAR } from '../shogi/notation';
-import { attackCounts, findKing, inCheck, legalMoves } from '../shogi/rules';
+import { PIECE_CHAR, squareName } from '../shogi/notation';
+import { attackCounts, attackersOf, findKing, inCheck, legalMoves } from '../shogi/rules';
 import type { Color, HandType, Move } from '../shogi/types';
 import { PROMOTE } from '../shogi/types';
 import { Board } from './Board';
@@ -28,6 +28,9 @@ export function GameView({ game, controls, onMove, initialViewer = 0, status, ac
   const [kikiMode, setKikiMode] = useState<KikiMode>('both');
   const [showNumbers, setShowNumbers] = useState(true);
   const [viewer, setViewer] = useState<Color>(initialViewer);
+  // 利いている駒を調べるマス。局面が変わったら解除する
+  const [focus, setFocus] = useState<{ sq: number; moveCount: number } | null>(null);
+  const focusSq = focus && focus.moveCount === game.moves.length ? focus.sq : null;
 
   const counts = useMemo(() => attackCounts(pos.board), [pos]);
   const moves = useMemo(() => (game.result ? [] : legalMoves(pos)), [pos, game.result]);
@@ -40,6 +43,11 @@ export function GameView({ game, controls, onMove, initialViewer = 0, status, ac
     );
   }, [moves, selected]);
   const targets = useMemo(() => new Set(candidates.map((m) => m.to)), [candidates]);
+  const attackers = useMemo((): [Set<number>, Set<number>] => {
+    if (focusSq === null) return [new Set(), new Set()];
+    const [s, g] = attackersOf(pos.board, focusSq);
+    return [new Set(s), new Set(g)];
+  }, [pos, focusSq]);
 
   const play = (m: Move) => {
     setSelected(null);
@@ -48,8 +56,7 @@ export function GameView({ game, controls, onMove, initialViewer = 0, status, ac
   };
 
   const onSquareClick = (s: number) => {
-    if (!myTurn) return;
-    if (targets.has(s)) {
+    if (myTurn && targets.has(s)) {
       const ms = candidates.filter((m) => m.to === s);
       const promote = ms.find((m) => m.promote);
       const stay = ms.find((m) => !m.promote);
@@ -58,11 +65,19 @@ export function GameView({ game, controls, onMove, initialViewer = 0, status, ac
       return;
     }
     const p = pos.board[s];
-    setSelected(p && p.color === pos.turn ? { kind: 'board', sq: s } : null);
+    if (myTurn && p && p.color === pos.turn) {
+      setFocus(null);
+      setSelected({ kind: 'board', sq: s });
+      return;
+    }
+    // 自分が動かせる駒以外のマス: そのマスに利いている駒を強調する (同じマスをもう一度押すと解除)
+    setSelected(null);
+    setFocus(focusSq === s ? null : { sq: s, moveCount: game.moves.length });
   };
 
   const onHandClick = (color: Color, type: HandType) => {
     if (!myTurn || color !== pos.turn) return;
+    setFocus(null);
     setSelected(selected?.kind === 'hand' && selected.type === type ? null : { kind: 'hand', type });
   };
 
@@ -94,6 +109,8 @@ export function GameView({ game, controls, onMove, initialViewer = 0, status, ac
           lastMove={last}
           moveCount={game.moves.length}
           checkSq={checked ? findKing(pos.board, pos.turn) : null}
+          focusSq={focusSq}
+          attackers={attackers}
           onSquareClick={onSquareClick}
           onHandClick={onHandClick}
         />
@@ -121,6 +138,20 @@ export function GameView({ game, controls, onMove, initialViewer = 0, status, ac
             利きの数を数字でも表示
           </label>
           <Legend />
+        </section>
+
+        <section className="panel">
+          <h3>マスに利いている駒</h3>
+          {focusSq === null ? (
+            <p className="focus-note">空いているマスや相手の駒をクリックすると、そこに利いている駒を強調します。</p>
+          ) : (
+            <div className="focus-info">
+              <span className="focus-sq">{squareName(focusSq)}</span>
+              <span className="focus-count sente">☗先手 {attackers[0].size}枚</span>
+              <span className="focus-count gote">☖後手 {attackers[1].size}枚</span>
+              <button onClick={() => setFocus(null)}>解除</button>
+            </div>
+          )}
         </section>
 
         <section className="panel">

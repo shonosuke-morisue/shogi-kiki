@@ -348,6 +348,44 @@ button.link {
   box-shadow: inset 0 0 0 3px var(--gote);
 }
 
+/* マスに利いている駒の強調 */
+.cell.focus {
+  box-shadow: inset 0 0 0 3px var(--accent);
+  outline: 2px dashed var(--accent);
+  outline-offset: -7px;
+}
+
+.cell.attacker::before {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  border-radius: 6px;
+  border: 3px solid var(--attacker-color);
+  background: color-mix(in srgb, var(--attacker-color) 22%, transparent);
+  pointer-events: none;
+  animation: attacker-pulse 1.4s ease-in-out infinite;
+}
+
+.cell.attacker.sente {
+  --attacker-color: var(--sente);
+}
+
+.cell.attacker.gote {
+  --attacker-color: var(--gote);
+}
+
+@keyframes attacker-pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cell.attacker::before {
+    animation: none;
+  }
+}
+
 .cell.target::after {
   content: '';
   position: absolute;
@@ -487,6 +525,40 @@ button.link {
   justify-content: center;
   background-color: var(--wood);
   color: #1d1408;
+}
+
+.focus-note {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 0;
+}
+
+.focus-info {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+}
+
+.focus-sq {
+  font-weight: 700;
+  font-size: 18px;
+}
+
+.focus-count {
+  font-weight: 600;
+}
+
+.focus-count.sente {
+  color: var(--sente);
+}
+
+.focus-count.gote {
+  color: var(--gote);
+}
+
+.focus-info button {
+  margin-left: auto;
 }
 
 .legend-note {

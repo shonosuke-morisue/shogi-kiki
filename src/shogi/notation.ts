@@ -28,10 +28,13 @@ const NOTATION_NAME: Record<PieceType, string> = {
 const FILE = ['', '１', '２', '３', '４', '５', '６', '７', '８', '９'];
 const RANK = ['一', '二', '三', '四', '五', '六', '七', '八', '九'];
 
+/** 例: ７六 */
+export const squareName = (s: number) => `${FILE[9 - sqX(s)]}${RANK[sqY(s)]}`;
+
 /** 例: ▲７六歩、△同角成、▲５五角打 (pos は指す前の局面) */
 export function moveToJapanese(pos: Position, m: Move, prev: Move | null): string {
   const mark = pos.turn === 0 ? '▲' : '△';
-  const dest = prev && prev.to === m.to ? '同' : `${FILE[9 - sqX(m.to)]}${RANK[sqY(m.to)]}`;
+  const dest = prev && prev.to === m.to ? '同' : squareName(m.to);
   if (m.from === null) return `${mark}${dest}${NOTATION_NAME[m.drop!]}打`;
   const p = pos.board[m.from]!;
   let suffix = '';

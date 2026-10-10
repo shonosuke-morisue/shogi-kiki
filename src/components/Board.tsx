@@ -23,6 +23,10 @@ interface Props {
   /** これまでに指された手数。増えたときだけアニメーションする */
   moveCount: number;
   checkSq: number | null;
+  /** 利いている駒を調べているマス */
+  focusSq: number | null;
+  /** focusSq に利いている駒のマス (先手・後手別) */
+  attackers: [Set<number>, Set<number>];
   onSquareClick: (sq: number) => void;
   onHandClick: (color: Color, type: HandType) => void;
 }
@@ -64,7 +68,7 @@ function slideOffset(m: Move, viewer: Color, mover: Color): { x: number; y: numb
 }
 
 export function Board(props: Props) {
-  const { pos, counts, kikiMode, showNumbers, viewer, selected, targets, lastMove, moveCount, checkSq } = props;
+  const { pos, counts, kikiMode, showNumbers, viewer, selected, targets, lastMove, moveCount, checkSq, focusSq, attackers } = props;
   const lastTo = lastMove?.to ?? null;
   // 手数が増えたとき (新しく指されたとき) だけアニメーションし、待ったで戻したときは動かさない
   const [prevCount, setPrevCount] = useState(moveCount);
@@ -101,6 +105,9 @@ export function Board(props: Props) {
               if (lastTo === s) cls.push('last');
               if (checkSq === s) cls.push('check');
               if (targets.has(s)) cls.push(p ? 'target capture' : 'target');
+              if (focusSq === s) cls.push('focus');
+              if (attackers[0].has(s)) cls.push('attacker sente');
+              if (attackers[1].has(s)) cls.push('attacker gote');
               return (
                 <button key={s} className={cls.join(' ')} style={style} onClick={() => props.onSquareClick(s)}>
                   {p && animating?.to === s ? (
