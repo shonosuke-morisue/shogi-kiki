@@ -64,15 +64,12 @@ export function GameView({ game, controls, onMove, initialViewer = 0, status, ac
       else play(ms[0]);
       return;
     }
+    // クリックしたマスに利いている駒を強調する (同じマスをもう一度押すと解除)
+    const again = focusSq === s;
+    setFocus(again ? null : { sq: s, moveCount: game.moves.length });
+    // 自分が動かせる駒なら、あわせて選択して移動先も表示する
     const p = pos.board[s];
-    if (myTurn && p && p.color === pos.turn) {
-      setFocus(null);
-      setSelected({ kind: 'board', sq: s });
-      return;
-    }
-    // 自分が動かせる駒以外のマス: そのマスに利いている駒を強調する (同じマスをもう一度押すと解除)
-    setSelected(null);
-    setFocus(focusSq === s ? null : { sq: s, moveCount: game.moves.length });
+    setSelected(!again && myTurn && p && p.color === pos.turn ? { kind: 'board', sq: s } : null);
   };
 
   const onHandClick = (color: Color, type: HandType) => {
@@ -143,7 +140,7 @@ export function GameView({ game, controls, onMove, initialViewer = 0, status, ac
         <section className="panel">
           <h3>マスに利いている駒</h3>
           {focusSq === null ? (
-            <p className="focus-note">空いているマスや相手の駒をクリックすると、そこに利いている駒を強調します。</p>
+            <p className="focus-note">盤上のマスをクリックすると、そこに利いている駒を強調します。</p>
           ) : (
             <div className="focus-info">
               <span className="focus-sq">{squareName(focusSq)}</span>
