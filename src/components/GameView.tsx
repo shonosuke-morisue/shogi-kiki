@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { currentPosition, resultText } from '../shogi/game';
 import type { GameState } from '../shogi/game';
@@ -22,12 +22,16 @@ interface Props {
   /** 状況表示の上書き (AI 思考中・相手待ちなど) */
   status?: ReactNode;
   actions?: ReactNode;
+  /** 最初に表示する手数 (省略時は最新の局面) */
+  initialView?: number;
+  /** サイドパネルの先頭に出す内容 (棋譜の対局者名など) */
+  info?: ReactNode;
 }
 
-export function GameView({ game, controls, onMove, allowBranch = true, initialViewer = 0, status, actions }: Props) {
+export function GameView({ game, controls, onMove, allowBranch = true, initialViewer = 0, status, actions, initialView, info }: Props) {
   const total = game.moves.length;
   // 表示している手数。null のときは常に最新の局面を表示する
-  const [view, setView] = useState<number | null>(null);
+  const [view, setView] = useState<number | null>(initialView ?? null);
   // 「最初から」などで棋譜が短くなったら最新表示に戻す
   if (view !== null && view >= total) setView(null);
   const idx = view === null || view >= total ? total : view;
@@ -73,6 +77,20 @@ export function GameView({ game, controls, onMove, allowBranch = true, initialVi
     setView(n >= total ? null : Math.max(0, n));
   };
 
+  // キーボードの ← → でも1手ずつ動かす
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
+      if (e.key === 'ArrowLeft' && idx > 0) goTo(idx - 1);
+      else if (e.key === 'ArrowRight' && !atLatest) goTo(idx + 1);
+      else return;
+      e.preventDefault();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
+
   const onSquareClick = (s: number) => {
     if (myTurn && targets.has(s)) {
       const ms = candidates.filter((m) => m.to === s);
@@ -103,7 +121,7 @@ export function GameView({ game, controls, onMove, allowBranch = true, initialVi
   let statusText: ReactNode = status;
   if (!atLatest) {
     statusText = `${idx}手目の局面を表示しています`;
-    if (!allowBranch) statusText += ' (最新の局面に戻ると指せます)';
+    if (!allowBranch && controls.length) statusText += ' (最新の局面に戻ると指せます)';
   } else if (result) statusText = resultText(result);
   else if (!statusText) statusText = `${turnName}の手番です`;
 
@@ -152,6 +170,7 @@ export function GameView({ game, controls, onMove, allowBranch = true, initialVi
       </div>
 
       <aside className="side">
+        {info}
         <section className="panel">
           <h3>利きの表示</h3>
           <div className="seg">
