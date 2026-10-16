@@ -495,6 +495,21 @@ button.link {
   margin: 8px 0;
 }
 
+.nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.nav-count {
+  min-width: 5.5em;
+  text-align: center;
+  font-size: 14px;
+  color: var(--muted);
+}
+
 .buttons {
   display: flex;
   flex-wrap: wrap;
@@ -574,6 +589,29 @@ button.link {
   overflow-y: auto;
   font-size: 14px;
   columns: 2;
+}
+
+.kifu button {
+  all: unset;
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 1px 4px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.kifu button:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.kifu button.current {
+  background: var(--accent);
+  color: #fff;
+}
+
+.kifu button.current .kifu-no {
+  color: inherit;
 }
 
 .kifu-no {

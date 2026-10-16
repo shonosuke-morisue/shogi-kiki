@@ -67,7 +67,7 @@ export function resultText(r: GameResult): string {
   return `詰みにより${w}の勝ちです`;
 }
 
-/** 最初の n 手だけを残した状態に戻す (待った) */
+/** 最初の n 手だけを残した状態に戻す (過去の局面から指し直すとき) */
 export function truncate(g: GameState, n: number): GameState {
   return {
     positions: g.positions.slice(0, n + 1),

@@ -16,7 +16,7 @@ export function AiGame({ human, level }: { human: Color; level: AiLevel }) {
     const started = game;
     thinkInWorker(pos, level).then((m) => {
       if (cancelled || !m) return;
-      // 思考中に「待った」などで局面が変わっていたら結果を捨てる
+      // 思考中に過去の局面から指し直すなどで局面が変わっていたら結果を捨てる
       setGame((g) => (g === started ? applyMove(g, m) : g));
     });
     return () => {
@@ -24,26 +24,15 @@ export function AiGame({ human, level }: { human: Color; level: AiLevel }) {
     };
   }, [game, pos, aiTurn, level]);
 
-  // 自分の手番まで戻す (AI の手と自分の手をまとめて取り消す)
-  const undo = () =>
-    setGame((g) => {
-      let n = g.moves.length - 1;
-      while (n > 0 && g.positions[n].turn !== human) n--;
-      return g.positions[n].turn === human ? truncate(g, n) : g;
-    });
-
   return (
     <GameView
       game={game}
       controls={[human]}
       initialViewer={human}
-      onMove={(m) => setGame((g) => applyMove(g, m))}
+      onMove={(m, at) => setGame((g) => applyMove(truncate(g, at), m))}
       status={aiTurn ? 'AIが考えています…' : undefined}
       actions={
         <>
-          <button disabled={game.moves.length < (human === 0 ? 1 : 2) || aiTurn} onClick={undo}>
-            待った
-          </button>
           <button disabled={!!game.result} onClick={() => setGame((g) => resign(g, human))}>
             投了
           </button>

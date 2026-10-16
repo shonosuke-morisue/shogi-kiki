@@ -9,12 +9,9 @@ export function LocalGame() {
     <GameView
       game={game}
       controls={[0, 1]}
-      onMove={(m) => setGame((g) => applyMove(g, m))}
+      onMove={(m, at) => setGame((g) => applyMove(truncate(g, at), m))}
       actions={
         <>
-          <button disabled={game.moves.length === 0} onClick={() => setGame((g) => truncate(g, g.moves.length - 1))}>
-            待った
-          </button>
           <button disabled={!!game.result} onClick={() => setGame((g) => resign(g, turn))}>
             投了
           </button>

@@ -137,6 +137,7 @@ export function OnlineGame({ seat }: { seat: Seat }) {
         game={game}
         controls={seat.color !== null && !opponentMissing ? [seat.color] : []}
         initialViewer={seat.color ?? 0}
+        allowBranch={false}
         onMove={(m) => sendMove(seat.roomId, game.moves.length, toUsi(m))}
         status={status}
         actions={
