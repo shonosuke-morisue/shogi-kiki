@@ -14,15 +14,26 @@ interface Props {
   game: GameState;
   /** この画面の利用者が動かせる手番 */
   controls: Color[];
-  onMove: (m: Move) => void;
+  /** at は指した局面の手数。過去の局面で指したときは、それ以降の棋譜を消して分岐させる */
+  onMove: (m: Move, at: number) => void;
+  /** 過去の局面からでも指せるか (false なら戻る・進むは閲覧のみ) */
+  allowBranch?: boolean;
   initialViewer?: Color;
   /** 状況表示の上書き (AI 思考中・相手待ちなど) */
   status?: ReactNode;
   actions?: ReactNode;
 }
 
-export function GameView({ game, controls, onMove, initialViewer = 0, status, actions }: Props) {
-  const pos = currentPosition(game);
+export function GameView({ game, controls, onMove, allowBranch = true, initialViewer = 0, status, actions }: Props) {
+  const total = game.moves.length;
+  // 表示している手数。null のときは常に最新の局面を表示する
+  const [view, setView] = useState<number | null>(null);
+  // 「最初から」などで棋譜が短くなったら最新表示に戻す
+  if (view !== null && view >= total) setView(null);
+  const idx = view === null || view >= total ? total : view;
+  const atLatest = idx === total;
+  const pos = atLatest ? currentPosition(game) : game.positions[idx];
+  const result = atLatest ? game.result : null;
   const [selected, setSelected] = useState<Selection>(null);
   const [promotion, setPromotion] = useState<{ promote: Move; stay: Move } | null>(null);
   const [kikiMode, setKikiMode] = useState<KikiMode>('both');
@@ -30,11 +41,11 @@ export function GameView({ game, controls, onMove, initialViewer = 0, status, ac
   const [viewer, setViewer] = useState<Color>(initialViewer);
   // 利いている駒を調べるマス。局面が変わったら解除する
   const [focus, setFocus] = useState<{ sq: number; moveCount: number } | null>(null);
-  const focusSq = focus && focus.moveCount === game.moves.length ? focus.sq : null;
+  const focusSq = focus && focus.moveCount === idx ? focus.sq : null;
 
   const counts = useMemo(() => attackCounts(pos.board), [pos]);
-  const moves = useMemo(() => (game.result ? [] : legalMoves(pos)), [pos, game.result]);
-  const myTurn = !game.result && controls.includes(pos.turn);
+  const moves = useMemo(() => (result ? [] : legalMoves(pos)), [pos, result]);
+  const myTurn = !result && controls.includes(pos.turn) && (atLatest || allowBranch);
 
   const candidates = useMemo(() => {
     if (!selected) return [];
@@ -52,7 +63,14 @@ export function GameView({ game, controls, onMove, initialViewer = 0, status, ac
   const play = (m: Move) => {
     setSelected(null);
     setPromotion(null);
-    onMove(m);
+    setView(null);
+    onMove(m, idx);
+  };
+
+  const goTo = (n: number) => {
+    setSelected(null);
+    setPromotion(null);
+    setView(n >= total ? null : Math.max(0, n));
   };
 
   const onSquareClick = (s: number) => {
@@ -66,7 +84,7 @@ export function GameView({ game, controls, onMove, initialViewer = 0, status, ac
     }
     // クリックしたマスに利いている駒を強調する (同じマスをもう一度押すと解除)
     const again = focusSq === s;
-    setFocus(again ? null : { sq: s, moveCount: game.moves.length });
+    setFocus(again ? null : { sq: s, moveCount: idx });
     // 自分が動かせる駒なら、あわせて選択して移動先も表示する
     const p = pos.board[s];
     setSelected(!again && myTurn && p && p.color === pos.turn ? { kind: 'board', sq: s } : null);
@@ -78,12 +96,15 @@ export function GameView({ game, controls, onMove, initialViewer = 0, status, ac
     setSelected(selected?.kind === 'hand' && selected.type === type ? null : { kind: 'hand', type });
   };
 
-  const last = game.moves.length ? game.moves[game.moves.length - 1] : null;
-  const checked = !game.result && inCheck(pos);
+  const last = idx ? game.moves[idx - 1] : null;
+  const checked = !result && inCheck(pos);
   const turnName = pos.turn === 0 ? '☗先手' : '☖後手';
 
   let statusText: ReactNode = status;
-  if (game.result) statusText = resultText(game.result);
+  if (!atLatest) {
+    statusText = `${idx}手目の局面を表示しています`;
+    if (!allowBranch) statusText += ' (最新の局面に戻ると指せます)';
+  } else if (result) statusText = resultText(result);
   else if (!statusText) statusText = `${turnName}の手番です`;
 
   const promotingPiece = promotion?.promote.from != null ? pos.board[promotion.promote.from] : null;
@@ -91,7 +112,7 @@ export function GameView({ game, controls, onMove, initialViewer = 0, status, ac
   return (
     <div className="game">
       <div className="game-main">
-        <div className={`status ${game.result ? 'over' : ''}`}>
+        <div className={`status ${result ? 'over' : ''}`}>
           {statusText}
           {checked && <span className="check-badge">王手</span>}
         </div>
@@ -104,13 +125,30 @@ export function GameView({ game, controls, onMove, initialViewer = 0, status, ac
           selected={selected}
           targets={targets}
           lastMove={last}
-          moveCount={game.moves.length}
+          moveCount={idx}
           checkSq={checked ? findKing(pos.board, pos.turn) : null}
           focusSq={focusSq}
           attackers={attackers}
           onSquareClick={onSquareClick}
           onHandClick={onHandClick}
         />
+        <div className="nav">
+          <button disabled={idx === 0} onClick={() => goTo(0)} title="開始局面へ">
+            ⏮
+          </button>
+          <button disabled={idx === 0} onClick={() => goTo(idx - 1)}>
+            ◀ 1手戻る
+          </button>
+          <span className="nav-count">
+            {idx} / {total}手
+          </span>
+          <button disabled={atLatest} onClick={() => goTo(idx + 1)}>
+            1手進む ▶
+          </button>
+          <button disabled={atLatest} onClick={() => goTo(total)} title="最新の局面へ">
+            ⏭
+          </button>
+        </div>
       </div>
 
       <aside className="side">
@@ -163,8 +201,10 @@ export function GameView({ game, controls, onMove, initialViewer = 0, status, ac
           <ol className="kifu">
             {game.notation.map((n, i) => (
               <li key={i}>
-                <span className="kifu-no">{i + 1}</span>
-                {n}
+                <button className={i + 1 === idx ? 'current' : ''} onClick={() => goTo(i + 1)}>
+                  <span className="kifu-no">{i + 1}</span>
+                  {n}
+                </button>
               </li>
             ))}
           </ol>

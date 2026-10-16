@@ -70,7 +70,7 @@ function slideOffset(m: Move, viewer: Color, mover: Color): { x: number; y: numb
 export function Board(props: Props) {
   const { pos, counts, kikiMode, showNumbers, viewer, selected, targets, lastMove, moveCount, checkSq, focusSq, attackers } = props;
   const lastTo = lastMove?.to ?? null;
-  // 手数が増えたとき (新しく指されたとき) だけアニメーションし、待ったで戻したときは動かさない
+  // 手数が増えたとき (指したとき・1手進めたとき) だけアニメーションし、戻したときは動かさない
   const [prevCount, setPrevCount] = useState(moveCount);
   const [animCount, setAnimCount] = useState(-1);
   if (moveCount !== prevCount) {
