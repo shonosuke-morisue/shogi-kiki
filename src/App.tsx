@@ -1,6 +1,7 @@
 import { lazy, Suspense, useState } from 'react';
 import { AiGame } from './modes/AiGame';
 import { LocalGame } from './modes/LocalGame';
+import { Replay } from './modes/Replay';
 import type { Seat } from './online/firebase';
 import type { AiLevel } from './shogi/ai';
 import type { Color } from './shogi/types';
@@ -10,7 +11,8 @@ type Screen =
   | { kind: 'local' }
   | { kind: 'ai'; human: Color; level: AiLevel }
   | { kind: 'lobby' }
-  | { kind: 'online'; seat: Seat };
+  | { kind: 'online'; seat: Seat }
+  | { kind: 'replay' };
 
 // Firebase を含むオンライン対戦部分は使うときだけ読み込む
 const OnlineLobby = lazy(() => import('./modes/Online').then((m) => ({ default: m.OnlineLobby })));
@@ -37,6 +39,7 @@ export default function App() {
       </header>
       {screen.kind === 'menu' && <Menu onSelect={setScreen} />}
       {screen.kind === 'local' && <LocalGame />}
+      {screen.kind === 'replay' && <Replay />}
       {screen.kind === 'ai' && <AiGame human={screen.human} level={screen.level} />}
       <Suspense fallback={<p className="center">読み込み中…</p>}>
         {screen.kind === 'lobby' && (
@@ -102,6 +105,14 @@ function Menu({ onSelect }: { onSelect: (s: Screen) => void }) {
         <p>1台の端末で交互に指します。</p>
         <button className="primary" onClick={() => onSelect({ kind: 'local' })}>
           対局開始
+        </button>
+      </section>
+
+      <section className="card">
+        <h2>棋譜を再現</h2>
+        <p>KIF・KI2・CSA 形式の棋譜を読み込んで、1手ずつ並べ直します。</p>
+        <button className="primary" onClick={() => onSelect({ kind: 'replay' })}>
+          棋譜を読み込む
         </button>
       </section>
     </div>

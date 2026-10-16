@@ -661,3 +661,41 @@ button.link {
 .promo-choices .piece {
   font-size: 32px;
 }
+
+/* ---- 棋譜の再現 ---- */
+.kifu-text {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  font-size: 14px;
+  padding: 8px 10px;
+  margin-bottom: 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  resize: vertical;
+}
+
+.kifu-info {
+  display: grid;
+  gap: 2px;
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+
+.kifu-info div {
+  display: flex;
+  gap: 8px;
+}
+
+.kifu-info dt {
+  min-width: 4.5em;
+  color: var(--muted);
+}
+
+.kifu-info dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
