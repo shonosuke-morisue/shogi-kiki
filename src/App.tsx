@@ -18,11 +18,58 @@ type Screen =
 const OnlineLobby = lazy(() => import('./modes/Online').then((m) => ({ default: m.OnlineLobby })));
 const OnlineGame = lazy(() => import('./modes/Online').then((m) => ({ default: m.OnlineGame })));
 
-const initialRoom = new URLSearchParams(location.search).get('room');
+const params = new URLSearchParams(location.search);
+const initialRoom = params.get('room');
+const initialScreen: Screen = initialRoom ? { kind: 'lobby' } : params.get('mode') === 'replay' ? { kind: 'replay' } : { kind: 'menu' };
+
+const REPO_URL = 'https://github.com/shonosuke-morisue/shogi-kiki';
+
+/**
+ * 棋譜再現モードを開く。評価値エンジンを動かすため、Service Worker を入れてから
+ * ?mode=replay を付けて開き直し、そのページだけを cross-origin isolated にする (public/coi-sw.js)。
+ */
+async function openReplay(show: () => void) {
+  if (!window.crossOriginIsolated && (await installIsolation())) {
+    location.assign(`${location.pathname}?mode=replay`);
+    return;
+  }
+  // Service Worker が使えなくても、評価値なしで棋譜再現はできる
+  history.replaceState(null, '', `${location.pathname}?mode=replay`);
+  show();
+}
+
+async function installIsolation(): Promise<boolean> {
+  if (!('serviceWorker' in navigator)) return false;
+  try {
+    await navigator.serviceWorker.register(`${import.meta.env.BASE_URL}coi-sw.js`, { scope: import.meta.env.BASE_URL });
+    await navigator.serviceWorker.ready;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// ?mode=replay を直接開いたが Service Worker がまだ入っていないときは、入れてから1度だけ開き直す
+if (initialScreen.kind === 'replay' && !window.crossOriginIsolated) {
+  const RETRY_KEY = 'shogi-kiki:isolation-retry';
+  let retried = true;
+  try {
+    retried = sessionStorage.getItem(RETRY_KEY) === '1';
+    sessionStorage.setItem(RETRY_KEY, '1');
+  } catch {
+    // 保存できない環境では開き直さない (無限に再読み込みしないように)
+  }
+  if (!retried) installIsolation().then((ok) => ok && location.reload());
+}
 
 export default function App() {
-  const [screen, setScreen] = useState<Screen>(initialRoom ? { kind: 'lobby' } : { kind: 'menu' });
+  const [screen, setScreen] = useState<Screen>(initialScreen);
   const toMenu = () => {
+    // isolated なままだとオンライン対戦に影響しうるので、普通のページとして開き直す
+    if (window.crossOriginIsolated) {
+      location.assign(location.pathname);
+      return;
+    }
     history.replaceState(null, '', location.pathname);
     setScreen({ kind: 'menu' });
   };
@@ -37,7 +84,7 @@ export default function App() {
           </button>
         )}
       </header>
-      {screen.kind === 'menu' && <Menu onSelect={setScreen} />}
+      {screen.kind === 'menu' && <Menu onSelect={(s) => (s.kind === 'replay' ? openReplay(() => setScreen(s)) : setScreen(s))} />}
       {screen.kind === 'local' && <LocalGame />}
       {screen.kind === 'replay' && <Replay />}
       {screen.kind === 'ai' && <AiGame human={screen.human} level={screen.level} />}
@@ -110,11 +157,51 @@ function Menu({ onSelect }: { onSelect: (s: Screen) => void }) {
 
       <section className="card">
         <h2>棋譜を再現</h2>
-        <p>KIF・KI2・CSA 形式の棋譜を読み込んで、1手ずつ並べ直します。</p>
+        <p>KIF・KI2・CSA 形式の棋譜を読み込んで、1手ずつ並べ直します。将棋エンジンによる評価値も表示できます。</p>
         <button className="primary" onClick={() => onSelect({ kind: 'replay' })}>
           棋譜を読み込む
         </button>
       </section>
+
+      <About />
     </div>
+  );
+}
+
+function About() {
+  return (
+    <details className="about">
+      <summary>このアプリについて・ライセンス</summary>
+      <p>
+        このアプリは GNU General Public License v3.0 (GPLv3) で公開しています。ソースコードは{' '}
+        <a href={REPO_URL} target="_blank" rel="noreferrer">
+          GitHub
+        </a>{' '}
+        から入手でき、GPLv3 の条件のもとで自由に利用・改変・再配布できます。無保証です。
+      </p>
+      <p>評価値の計算には次のソフトウェアを使っています (エンジン本体は GPLv3)。</p>
+      <ul>
+        <li>
+          <a href="https://github.com/yaneurao/YaneuraOu" target="_blank" rel="noreferrer">
+            やねうら王 (YaneuraOu)
+          </a>{' '}
+          © yaneurao ほか
+        </li>
+        <li>
+          <a href="https://github.com/mizar/YaneuraOu.wasm/tree/c9c34f240f89b611ca34060466e61220b0d3180c" target="_blank" rel="noreferrer">
+            YaneuraOu.wasm
+          </a>{' '}
+          (WebAssembly 版, Mizar ほか, npm @mizarjp/yaneuraou.k-p 7.6.3-alpha.0) の改変なしのビルドを使用
+        </li>
+        <li>評価関数: 水匠ぷち (SuishoPetite) © たややん</li>
+      </ul>
+      <p>
+        ライセンス全文はリポジトリの{' '}
+        <a href={`${REPO_URL}/blob/main/LICENSE`} target="_blank" rel="noreferrer">
+          LICENSE
+        </a>{' '}
+        をご覧ください。
+      </p>
+    </details>
   );
 }

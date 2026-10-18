@@ -5,6 +5,7 @@
 - **AIと対戦**: やさしい / ふつう / つよい の3段階
 - **オンライン対戦**: 部屋を作って招待リンクを送るだけで、離れた相手と対局できます (Firebase Realtime Database を使用)
 - **ふたりで対局**: 1台の端末で交互に指します
+- **棋譜を再現**: KIF・KI2・CSA 形式の棋譜を1手ずつ並べ直せます。将棋エンジン (やねうら王 WebAssembly 版) による評価値と読み筋も表示します
 - 利きの表示は「両方 / 先手 / 後手 / なし」を切り替えられ、利きの数を数字でも表示できます
 - ルール: 合法手のみ指せます (二歩・打ち歩詰め・行き所のない駒の禁止、成りの選択、詰み判定、千日手・連続王手の千日手)
 
@@ -45,8 +46,23 @@ npx firebase-tools emulators:start --only auth,database --project demo-shogi
 
 | パス | 内容 |
 | --- | --- |
-| `src/shogi/rules.ts` | 盤面・合法手生成・利きの計算・USI 形式の変換 |
+| `src/shogi/rules.ts` | 盤面・合法手生成・利きの計算・USI・SFEN 形式の変換 |
 | `src/shogi/game.ts` | 対局の進行 (棋譜・詰み・千日手の判定) |
 | `src/shogi/ai.ts` | AI (アルファベータ探索 + 駒得の評価)。Web Worker で動かします |
+| `src/analysis/` | 評価値エンジン (やねうら王 WebAssembly 版) との通信と評価値の表示 |
+| `public/coi-sw.js` | 棋譜再現ページを cross-origin isolated にする Service Worker |
 | `src/components/` | 盤面・持ち駒・利きの表示 |
 | `src/online/firebase.ts` | オンライン対戦の部屋・指し手の同期 |
+
+## 評価値エンジンについて
+
+棋譜再現モードの評価値は、[やねうら王](https://github.com/yaneurao/YaneuraOu) の WebAssembly 版
+([YaneuraOu.wasm](https://github.com/mizar/YaneuraOu.wasm)、npm `@mizarjp/yaneuraou.k-p`、評価関数は水匠ぷち) をブラウザ内で動かして計算しています。
+
+- エンジンのファイルはビルド時に `node_modules` から `dist/engine/` にコピーされます (`vite.config.ts`)
+- エンジンは SharedArrayBuffer を使うため、ページが cross-origin isolated である必要があります。GitHub Pages では HTTP ヘッダーを設定できないので、`public/coi-sw.js` (Service Worker) が `?mode=replay` のページにだけ COOP/COEP ヘッダーを付けます。オンライン対戦などほかの画面は通常のページのままです
+- 対局中 (AI 対戦・オンライン対戦) には評価値を出しません
+
+## ライセンス
+
+GNU General Public License v3.0 ([LICENSE](LICENSE))。GPLv3 のやねうら王を組み込んでいるため、このアプリ全体を GPLv3 で公開しています。
