@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { DragEvent } from 'react';
+import { EvalPanel } from '../analysis/EvalPanel';
 import { GameView } from '../components/GameView';
 import { decodeKifu, parseKifu } from '../shogi/kifu';
 import type { Kifu } from '../shogi/kifu';
@@ -8,6 +9,15 @@ export function Replay() {
   const [kifu, setKifu] = useState<Kifu | null>(null);
   // 読み込むたびに GameView を作り直して開始局面から表示する
   const [loadCount, setLoadCount] = useState(0);
+  const [evalOn, setEvalOn] = useState(loadEvalSetting);
+  const toggleEval = (on: boolean) => {
+    setEvalOn(on);
+    try {
+      localStorage.setItem(EVAL_KEY, on ? '1' : '0');
+    } catch {
+      // 保存できなくても表示の切り替えはできる
+    }
+  };
 
   const load = (k: Kifu) => {
     setKifu(k);
@@ -44,9 +54,20 @@ export function Replay() {
           <p className="focus-note">◀ ▶ ボタンか、キーボードの ← → で1手ずつ進められます。</p>
         </section>
       }
+      renderPanel={(pos) => <EvalPanel pos={pos} enabled={evalOn} onToggle={toggleEval} />}
       actions={<button onClick={() => setKifu(null)}>別の棋譜を読み込む</button>}
     />
   );
+}
+
+const EVAL_KEY = 'shogi-kiki:eval';
+
+function loadEvalSetting(): boolean {
+  try {
+    return localStorage.getItem(EVAL_KEY) !== '0';
+  } catch {
+    return true;
+  }
 }
 
 function KifuLoader({ onLoad }: { onLoad: (k: Kifu) => void }) {

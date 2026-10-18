@@ -289,3 +289,41 @@ export function fromUsi(str: string): Move {
   }
   return { from: parseUsiSq(str.slice(0, 2)), to: parseUsiSq(str.slice(2, 4)), promote: str[4] === '+' };
 }
+
+// ---- SFEN 形式の局面文字列 (評価値エンジンに局面を渡すのに使う) ----
+const SFEN_PIECE: Record<PieceType, string> = {
+  FU: 'P', KY: 'L', KE: 'N', GI: 'S', KI: 'G', KA: 'B', HI: 'R', OU: 'K',
+  TO: '+P', NY: '+L', NK: '+N', NG: '+S', UM: '+B', RY: '+R',
+};
+
+/** 例: lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1 */
+export function toSfen(pos: Position, moveNumber = 1): string {
+  const rows: string[] = [];
+  for (let y = 0; y < 9; y++) {
+    let row = '';
+    let empty = 0;
+    for (let x = 0; x < 9; x++) {
+      const p = pos.board[sq(x, y)];
+      if (!p) {
+        empty++;
+        continue;
+      }
+      if (empty) row += empty;
+      empty = 0;
+      const c = SFEN_PIECE[p.type];
+      row += p.color === 0 ? c : c.toLowerCase();
+    }
+    if (empty) row += empty;
+    rows.push(row);
+  }
+  let hands = '';
+  for (const c of [0, 1] as const) {
+    for (const h of HAND_TYPES) {
+      const n = pos.hands[c][h];
+      if (!n) continue;
+      if (n > 1) hands += n;
+      hands += c === 0 ? USI_PIECE[h] : USI_PIECE[h].toLowerCase();
+    }
+  }
+  return `${rows.join('/')} ${pos.turn === 0 ? 'b' : 'w'} ${hands || '-'} ${moveNumber}`;
+}

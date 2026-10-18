@@ -4,7 +4,7 @@ import { currentPosition, resultText } from '../shogi/game';
 import type { GameState } from '../shogi/game';
 import { PIECE_CHAR, squareName } from '../shogi/notation';
 import { attackCounts, attackersOf, findKing, inCheck, legalMoves } from '../shogi/rules';
-import type { Color, HandType, Move } from '../shogi/types';
+import type { Color, HandType, Move, Position } from '../shogi/types';
 import { PROMOTE } from '../shogi/types';
 import { Board } from './Board';
 import { kikiAlpha } from './kiki';
@@ -26,9 +26,11 @@ interface Props {
   initialView?: number;
   /** サイドパネルの先頭に出す内容 (棋譜の対局者名など) */
   info?: ReactNode;
+  /** info の下に出す、表示中の局面に応じた内容 (評価値など) */
+  renderPanel?: (pos: Position, moveCount: number) => ReactNode;
 }
 
-export function GameView({ game, controls, onMove, allowBranch = true, initialViewer = 0, status, actions, initialView, info }: Props) {
+export function GameView({ game, controls, onMove, allowBranch = true, initialViewer = 0, status, actions, initialView, info, renderPanel }: Props) {
   const total = game.moves.length;
   // 表示している手数。null のときは常に最新の局面を表示する
   const [view, setView] = useState<number | null>(initialView ?? null);
@@ -171,6 +173,7 @@ export function GameView({ game, controls, onMove, allowBranch = true, initialVi
 
       <aside className="side">
         {info}
+        {renderPanel?.(pos, idx)}
         <section className="panel">
           <h3>利きの表示</h3>
           <div className="seg">

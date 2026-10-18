@@ -699,3 +699,81 @@ button.link {
   margin: 0;
   overflow-wrap: anywhere;
 }
+
+/* ---- 評価値 (棋譜再現モード) ---- */
+.eval-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.eval-score {
+  font-size: 26px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.eval-judge {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.eval-bar {
+  display: flex;
+  height: 10px;
+  margin-top: 6px;
+  border-radius: 5px;
+  overflow: hidden;
+  background: var(--gote);
+}
+
+.eval-bar-sente {
+  background: var(--sente);
+  transition: width 0.3s ease;
+}
+
+.eval-bar-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.eval-bar-labels .sente {
+  color: var(--sente);
+}
+
+.eval-bar-labels .gote {
+  color: var(--gote);
+}
+
+.eval-pv {
+  font-size: 13px;
+  margin: 8px 0 0;
+  line-height: 1.6;
+}
+
+.eval-label {
+  color: var(--muted);
+  margin-right: 6px;
+}
+
+.eval-meta {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 6px 0 0;
+}
+
+/* ---- このアプリについて ---- */
+.about {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.about summary {
+  cursor: pointer;
+}
+
+.about a {
+  color: var(--accent);
+}
